@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 世界杯实时赛况</title>
+<style>
+:root{
+  --bg:#0a0e1a; --card:#131a2e; --card2:#1a2340; --border:#243055;
+  --text:#e8ecf6; --muted:#8b97b8; --accent:#2dd4a8; --accent2:#4d8df0;
+  --live:#ff4d6d; --gold:#f5c451;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,#0d1b3e 0%,#14532d 50%,#7a1f2b 100%);padding:28px 16px 20px;text-align:center;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 20%,rgba(255,255,255,.08),transparent 50%)}
+header h1{font-size:clamp(22px,4vw,32px);font-weight:800;letter-spacing:1px;position:relative;z-index:1}
+header p{color:rgba(255,255,255,.75);margin-top:6px;font-size:14px;position:relative;z-index:1}
+.refresh-bar{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.7)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.refresh-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:4px 14px;border-radius:20px;cursor:pointer;font-size:12px;transition:.2s}
+.refresh-btn:hover{background:rgba(255,255,255,.22)}
+nav{display:flex;justify-content:center;gap:4px;padding:12px;background:var(--card);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);flex-wrap:wrap}
+nav button{background:transparent;border:none;color:var(--muted);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;transition:.2s}
+nav button:hover{color:var(--text);background:var(--card2)}
+nav button.active{color:#0a0e1a;background:var(--accent)}
+main{max-width:980px;margin:0 auto;padding:20px 14px 60px}
+.section{display:none}.section.active{display:block;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.day-header{font-size:14px;font-weight:700;color:var(--accent);margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.day-header::after{content:"";flex:1;height:1px;background:var(--border)}
+.round-tag{font-size:11px;color:var(--gold);border:1px solid rgba(245,196,81,.4);padding:1px 8px;border-radius:10px;font-weight:600}
+.match{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:.2s}
+.match:hover{border-color:var(--accent2)}
+.match.live{border-color:var(--live);box-shadow:0 0 16px rgba(255,77,109,.15)}
+.match-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:var(--muted)}
+.status{font-weight:700;font-size:12px;padding:2px 10px;border-radius:10px}
+.status.pre{background:rgba(77,141,240,.15);color:var(--accent2)}
+.status.in{background:rgba(255,77,109,.18);color:var(--live);animation:pulse 1.5s infinite}
+.status.post{background:rgba(139,151,184,.15);color:var(--muted)}
+.teams{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+.team{display:flex;align-items:center;gap:10px;min-width:0}
+.team.away{flex-direction:row-reverse;text-align:right}
+.team img{width:34px;height:34px;object-fit:contain;flex-shrink:0}
+.team .name{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team .name.clickable{cursor:pointer;border-bottom:1px dashed rgba(139,151,184,.5)}
+.team .name.clickable:hover{color:var(--accent);border-color:var(--accent)}
+.score{font-size:24px;font-weight:800;letter-spacing:2px;text-align:center;min-width:70px}
+.score.dim{color:var(--muted);font-size:14px;font-weight:600;letter-spacing:0}
+.venue{margin-top:8px;font-size:12px;color:var(--muted);text-align:center}
+.actions{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.act-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:6px 14px;border-radius:18px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text);text-decoration:none;transition:.2s}
+.act-btn:hover{border-color:var(--accent);color:var(--accent)}
+.act-btn.video{border-color:rgba(255,77,109,.4)}
+.act-btn.video:hover{border-color:var(--live);color:var(--live)}
+.act-btn.lineup{border-color:rgba(245,196,81,.4)}
+.act-btn.lineup:hover{border-color:var(--gold);color:var(--gold)}
+.predict{display:none;margin-top:12px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px}
+.predict.open{display:block;animation:fadeIn .25s}
+.prob-bar{display:flex;height:26px;border-radius:8px;overflow:hidden;margin:10px 0 6px;font-size:12px;font-weight:700}
+.prob-bar div{display:flex;align-items:center;justify-content:center;white-space:nowrap;min-width:0;overflow:hidden}
+.prob-h{background:linear-gradient(135deg,#2dd4a8,#1ea885);color:#04261c}
+.prob-d{background:#3a4569;color:#cbd5ef}
+.prob-a{background:linear-gradient(135deg,#4d8df0,#3568c4);color:#0a1a36}
+.prob-legend{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:10px}
+.analysis{font-size:13px;line-height:1.8;color:var(--text)}
+.analysis b{color:var(--gold)}
+.ability-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.ability-box{background:rgba(10,14,26,.5);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.7}
+.ability-box h5{font-size:13px;color:var(--accent);margin-bottom:4px}
+.ability-box .stars{color:var(--gold)}
+.predict-note{margin-top:8px;font-size:11px;color:var(--muted)}
+.date-nav{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;scrollbar-width:thin}
+.date-nav button{flex-shrink:0;background:var(--card);border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.date-nav button:hover{border-color:var(--accent2);color:var(--text)}
+.date-nav button.sel{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+/* ---------- 淘汰赛对阵图 ---------- */
+.bracket-wrap{overflow-x:auto;padding-bottom:14px}
+.bracket{display:flex;gap:18px;min-width:max-content;align-items:stretch}
+.b-round{display:flex;flex-direction:column;justify-content:space-around;gap:10px;min-width:215px}
+.b-round h4{text-align:center;color:var(--gold);font-size:13px;margin-bottom:4px}
+.b-match{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px}
+.b-match.live{border-color:var(--live)}
+.b-match .b-date{color:var(--muted);font-size:10px;margin-bottom:5px;display:flex;justify-content:space-between}
+.b-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0}
+.b-row .bt{display:flex;align-items:center;gap:6px;min-width:0}
+.b-row img{width:18px;height:18px;object-fit:contain}
+.b-row .bn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.b-row.winner .bn{color:var(--accent);font-weight:800}
+.b-row .bs{font-weight:800;min-width:18px;text-align:right}
+.group-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.group-card h3{padding:12px 16px;font-size:15px;color:var(--gold);background:var(--card2)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--muted);font-weight:600;text-align:center;padding:8px 6px;border-bottom:1px solid var(--border)}
+th:first-child,td:first-child{text-align:left;padding-left:16px}
+td{padding:9px 6px;text-align:center;border-bottom:1px solid rgba(36,48,85,.5)}
+tr:last-child td{border-bottom:none}
+tr.q td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.tname{display:flex;align-items:center;gap:8px;font-weight:600}
+.tname img{width:22px;height:22px;object-fit:contain}
+.tname span.clickable{cursor:pointer;border-bottom:1px dashed rgba(139,151,184,.5)}
+.tname span.clickable:hover{color:var(--accent);border-color:var(--accent)}
+.pts{font-weight:800;color:var(--accent)}
+.loading,.error,.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error button{margin-top:12px;background:var(--accent2);color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer}
+.about{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;line-height:1.9;font-size:14px}
+.about h3{color:var(--accent);margin-bottom:8px;margin-top:18px}
+.about h3:first-child{margin-top:0}
+footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;border-top:1px solid var(--border)}
+/* ---------- 弹窗 ---------- */
+.modal-mask{display:none;position:fixed;inset:0;background:rgba(5,8,18,.75);backdrop-filter:blur(3px);z-index:100;align-items:center;justify-content:center;padding:16px}
+.modal-mask.open{display:flex;animation:fadeIn .2s}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:640px;max-height:84vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--card2);border-bottom:1px solid var(--border)}
+.modal-head img{width:30px;height:30px;object-fit:contain}
+.modal-head h3{font-size:16px;flex:1}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;transition:.2s}
+.modal-close:hover{color:var(--live);border-color:var(--live)}
+.modal-body{overflow-y:auto;padding:14px 18px}
+.pos-header{font-size:13px;font-weight:700;color:var(--gold);margin:14px 0 6px;display:flex;align-items:center;gap:8px}
+.pos-header::after{content:"";flex:1;height:1px;background:var(--border)}
+.pos-header:first-child{margin-top:0}
+.player{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid rgba(36,48,85,.45);font-size:13px}
+.player:last-child{border-bottom:none}
+.jersey{width:30px;height:24px;display:flex;align-items:center;justify-content:center;background:var(--card2);border:1px solid var(--border);border-radius:6px;font-weight:800;font-size:12px;color:var(--accent);flex-shrink:0}
+.player .pname{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .pmeta{color:var(--muted);font-size:12px;flex-shrink:0}
+.player .sub-tag{font-size:10px;color:var(--accent2);border:1px solid rgba(77,141,240,.4);padding:0 6px;border-radius:8px;flex-shrink:0}
+.lineup-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.lineup-col h4{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--accent);margin-bottom:8px}
+.lineup-col h4 img{width:22px;height:22px;object-fit:contain}
+@media(max-width:560px){
+  .team .name{font-size:13px}
+  .team img{width:26px;height:26px}
+  .score{font-size:19px;min-width:54px}
+  nav button{padding:8px 10px;font-size:12px}
+  th,td{padding:7px 4px;font-size:12px}
+  .ability-grid{grid-template-columns:1fr}
+  .lineup-cols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚽ 2026 FIFA 世界杯</h1>
+  <p>美国 · 加拿大 · 墨西哥 | 48 支球队 · 104 场比赛</p>
+  <div class="refresh-bar">
+    <span class="dot"></span>
+    <span id="lastUpdate">数据加载中…</span>
+    <button class="refresh-btn" onclick="refreshAll(true)">↻ 刷新</button>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-tab="today" onclick="switchTab('today')">今日比赛</button>
+  <button data-tab="schedule" onclick="switchTab('schedule')">完整赛程</button>
+  <button data-tab="standings" onclick="switchTab('standings')">积分榜</button>
+  <button data-tab="bracket" onclick="switchTab('bracket')">淘汰赛对阵</button>
+  <button data-tab="about" onclick="switchTab('about')">关于</button>
+</nav>
+
+<main>
+  <div id="today" class="section active"><div class="loading"><div class="spinner"></div>正在获取比赛数据…</div></div>
+  <div id="schedule" class="section">
+    <div class="date-nav" id="dateNav"></div>
+    <div id="scheduleList"><div class="loading"><div class="spinner"></div>加载中…</div></div>
+  </div>
+  <div id="standings" class="section"><div class="loading"><div class="spinner"></div>加载积分榜…</div></div>
+  <div id="bracket" class="section"><div class="loading"><div class="spinner"></div>加载对阵图…</div></div>
+  <div id="about" class="section">
+    <div class="about">
+      <h3>📡 数据来源</h3>
+      <p>本页面通过 ESPN 公开数据接口实时获取数据，无需 API 密钥，比赛期间每 60 秒自动刷新。点击队名在本页弹窗查看完整球员名单；已结束或进行中的比赛可在本页查看出场阵容。</p>
+      <h3>🔮 预测说明</h3>
+      <p>胜负预测综合：① 球队实力基准分（参考国际排名）② 本届赛事实时表现修正 ③ 核心球员与战术风格分析。仅供娱乐参考，不构成任何竞猜建议。</p>
+      <h3>🏆 赛事简介</h3>
+      <p>2026 年国际足联世界杯于 6 月 11 日至 7 月 19 日在美加墨三国举行，首届 48 队规模，共 104 场比赛。所有时间自动转换为本地时区。</p>
+    </div>
+  </div>
+</main>
+
+<footer>数据来自 ESPN 公开接口 · 仅供学习交流使用 · 非 FIFA 官方页面</footer>
+
+<!-- 页面内弹窗 -->
+<div class="modal-mask" id="modalMask" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <img id="modalLogo" src="" alt="" style="display:none">
+      <h3 id="modalTitle">球员名单</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world";
+const API = BASE + "/scoreboard?limit=300&dates=20260611-20260719";
+const STANDINGS_API = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings?season=2026";
+let allEvents = [];
+let selectedDate = null;
+let openPredicts = new Set();
+const rosterCache = {};   // teamId -> html
+const lineupCache = {};   // eventId -> html
+
+// ================= 中文翻译与实力评分 =================
+const TEAMS = {
+"Spain":["西班牙",1880],"Argentina":["阿根廷",1870],"France":["法国",1860],"England":["英格兰",1830],
+"Brazil":["巴西",1780],"Portugal":["葡萄牙",1770],"Netherlands":["荷兰",1760],"Belgium":["比利时",1740],
+"Germany":["德国",1715],"Croatia":["克罗地亚",1700],"Italy":["意大利",1700],"Morocco":["摩洛哥",1700],
+"Colombia":["哥伦比亚",1680],"United States":["美国",1670],"USA":["美国",1670],"Uruguay":["乌拉圭",1670],
+"Mexico":["墨西哥",1660],"Switzerland":["瑞士",1640],"Japan":["日本",1640],"Senegal":["塞内加尔",1630],
+"Denmark":["丹麦",1630],"Iran":["伊朗",1620],"Ecuador":["厄瓜多尔",1620],"South Korea":["韩国",1590],
+"Korea Republic":["韩国",1590],"Austria":["奥地利",1580],"Australia":["澳大利亚",1580],"Canada":["加拿大",1570],
+"Ukraine":["乌克兰",1560],"Norway":["挪威",1560],"Turkey":["土耳其",1550],"Türkiye":["土耳其",1550],
+"Sweden":["瑞典",1540],"Wales":["威尔士",1540],"Poland":["波兰",1540],"Serbia":["塞尔维亚",1530],
+"Egypt":["埃及",1520],"Algeria":["阿尔及利亚",1520],"Greece":["希腊",1500],"Hungary":["匈牙利",1500],
+"Scotland":["苏格兰",1500],"Paraguay":["巴拉圭",1500],"Tunisia":["突尼斯",1500],
+"Ivory Coast":["科特迪瓦",1500],"Côte d'Ivoire":["科特迪瓦",1500],"Czechia":["捷克",1500],"Czech Republic":["捷克",1500],
+"Romania":["罗马尼亚",1480],"Nigeria":["尼日利亚",1480],"Cameroon":["喀麦隆",1480],"Slovakia":["斯洛伐克",1470],
+"Slovenia":["斯洛文尼亚",1450],"Ghana":["加纳",1450],"Panama":["巴拿马",1450],"South Africa":["南非",1450],
+"Qatar":["卡塔尔",1450],"Mali":["马里",1450],"Saudi Arabia":["沙特阿拉伯",1440],"Uzbekistan":["乌兹别克斯坦",1440],
+"Republic of Ireland":["爱尔兰",1420],"Ireland":["爱尔兰",1420],"Bosnia and Herzegovina":["波黑",1420],"Venezuela":["委内瑞拉",1420],
+"Iraq":["伊拉克",1400],"DR Congo":["刚果民主共和国",1400],"Democratic Republic of the Congo":["刚果民主共和国",1400],
+"Albania":["阿尔巴尼亚",1400],"Israel":["以色列",1400],"Burkina Faso":["布基纳法索",1400],"Jordan":["约旦",1390],"Finland":["芬兰",1390],
+"Cape Verde":["佛得角",1380],"Cabo Verde":["佛得角",1380],"New Zealand":["新西兰",1380],"Gabon":["加蓬",1380],"United Arab Emirates":["阿联酋",1380],
+"North Macedonia":["北马其顿",1380],"Jamaica":["牙买加",1370],"Kosovo":["科索沃",1370],
+"Honduras":["洪都拉斯",1360],"Costa Rica":["哥斯达黎加",1360],"Oman":["阿曼",1350],"Curacao":["库拉索",1340],"Curaçao":["库拉索",1340],
+"Bolivia":["玻利维亚",1300],"Haiti":["海地",1300],"Suriname":["苏里南",1300],"Guatemala":["危地马拉",1300],
+"Peru":["秘鲁",1480],"Chile":["智利",1470],"Trinidad and Tobago":["特立尼达和多巴哥",1250],"Indonesia":["印度尼西亚",1250],
+"El Salvador":["萨尔瓦多",1250],"Kuwait":["科威特",1200],"Nicaragua":["尼加拉瓜",1150],"New Caledonia":["新喀里多尼亚",1100],"Bermuda":["百慕大",1100]
+};
+const SQUAD = {
+"Argentina":{s:"梅西、阿尔瓦雷斯、恩佐·费尔南德斯",t:"卫冕冠军，控球渗透与高位逼抢结合，大赛经验和心理素质冠绝全场"},
+"France":{s:"姆巴佩、登贝莱、楚阿梅尼",t:"锋线速度恐怖，防守反击犀利，整体天赋是夺冠热门级别"},
+"Spain":{s:"亚马尔、佩德里、罗德里",t:"欧洲杯冠军班底，传控体系成熟，边路爆点与中场控制力顶级"},
+"England":{s:"凯恩、贝林厄姆、萨卡",t:"攻击群豪华，定位球威胁大，关键战稳定性是最大变数"},
+"Brazil":{s:"维尼修斯、罗德里戈、拉菲尼亚",t:"个人能力出众，边路突破犀利，体系磨合程度决定上限"},
+"Portugal":{s:"C罗、B·费尔南德斯、莱奥",t:"阵容厚度极佳，攻守平衡，老将经验与新生代冲击力兼备"},
+"Netherlands":{s:"范戴克、德容、加克波",t:"防线稳固，整体纪律性强，由守转攻效率高"},
+"Germany":{s:"穆西亚拉、维尔茨、基米希",t:"中前场创造力回暖，主打控球压迫，年轻核心正值上升期"},
+"Belgium":{s:"德布劳内、多库、卢卡库",t:"黄金一代末期与新生代交替，进攻端仍有顶级输出"},
+"Croatia":{s:"莫德里奇、科瓦契奇、格瓦迪奥尔",t:"中场技术细腻，大赛韧性极强，淘汰赛经验丰富"},
+"Italy":{s:"多纳鲁马、巴雷拉、雷特吉",t:"链式防守传统犹在，门将位置世界顶级，进攻端逐步成形"},
+"Morocco":{s:"阿什拉夫·哈基米、布拉欣·迪亚斯、恩内斯里",t:"上届四强，防守组织极佳，反击速度快，主场般的侨民助威"},
+"United States":{s:"普利西奇、麦肯尼、巴洛贡",t:"东道主之一，跑动积极，旅欧球员构成主力框架"},
+"Mexico":{s:"圣地亚哥·希门尼斯、洛萨诺",t:"东道主之一，主场氛围狂热，技术流中场配合细腻"},
+"Canada":{s:"阿方索·戴维斯、乔纳森·大卫",t:"东道主之一，边路速度突出，身体对抗强硬"},
+"Japan":{s:"久保建英、三笘薰、远藤航",t:"亚洲最强，整体传切流畅，旅欧军团成色十足，逆转能力强"},
+"South Korea":{s:"孙兴慜、李刚仁、金玟哉",t:"核心球员个人能力突出，攻防转换速度快"},
+"Korea Republic":{s:"孙兴慜、李刚仁、金玟哉",t:"核心球员个人能力突出，攻防转换速度快"},
+"Uruguay":{s:"巴尔韦德、努涅斯、阿劳霍",t:"南美硬朗作风，中场覆盖面大，防守强度高"},
+"Colombia":{s:"路易斯·迪亚斯、J·罗德里格斯",t:"边路爆破力强，技术与身体兼备，近年大赛战绩稳步上升"},
+"Ecuador":{s:"凯塞多、帕乔",t:"年轻化阵容，中场拦截能力出色，作风顽强"},
+"Senegal":{s:"萨尔、库利巴利、马内",t:"非洲劲旅，身体素质和速度顶级，防线经验丰富"},
+"Switzerland":{s:"扎卡、恩多耶",t:"战术纪律严明，定位球防守扎实，大赛稳定输出"},
+"Denmark":{s:"霍伊伦、埃里克森",t:"整体足球典范，传跑体系流畅，团队大于个人"},
+"Norway":{s:"哈兰德、厄德高",t:"双核驱动，哈兰德的禁区终结能力是最大杀器"},
+"Austria":{s:"萨比策、鲍姆加特纳",t:"高位逼抢，跑动量大，整体压迫令人窒息"},
+"Australia":{s:"苏塔尔、古德温",t:"身体对抗出色，定位球得分能力强，作风顽强"},
+"Iran":{s:"塔雷米、阿兹蒙",t:"防守反击套路成熟，锋线把握机会能力强"},
+"Egypt":{s:"萨拉赫",t:"围绕萨拉赫的进攻体系，反击一击致命"},
+"Algeria":{s:"马赫雷斯、本纳赛尔",t:"北非技术流，控球能力强，关键传球质量高"},
+"Ukraine":{s:"穆德里克、道夫比克",t:"边路速度与中锋支点结合，反击效率不俗"},
+"Turkey":{s:"居莱尔、恰尔汗奥卢",t:"中场创造力出色，主打地面渗透，状态起伏较大"},
+"Türkiye":{s:"居莱尔、恰尔汗奥卢",t:"中场创造力出色，主打地面渗透，状态起伏较大"},
+"Poland":{s:"莱万多夫斯基、泽林斯基",t:"锋线经验老到，整体偏重防守，依赖核心发挥"},
+"Sweden":{s:"伊萨克、库卢塞夫斯基",t:"锋线天赋出众，北欧身体流与技术流的结合体"},
+"Scotland":{s:"麦克托米奈、罗伯逊",t:"作风硬朗，中场绞杀能力强，定位球威胁大"},
+"Wales":{s:"布伦南·约翰逊",t:"团队凝聚力强，防守反击为主"},
+"Ivory Coast":{s:"凯西、阿莱",t:"非洲杯冠军底蕴，身体与技术均衡"},
+"Côte d'Ivoire":{s:"凯西、阿莱",t:"非洲杯冠军底蕴，身体与技术均衡"},
+"Ghana":{s:"库杜斯",t:"中前场冲击力强，年轻球员敢打敢拼"},
+"Nigeria":{s:"奥斯梅恩、卢克曼",t:"锋线火力凶猛，速度与爆发力顶级"},
+"Paraguay":{s:"阿尔米隆",t:"南美老牌劲旅复苏，防守韧性十足"},
+"Tunisia":{s:"姆萨克尼",t:"战术执行力强，防守组织有序"},
+"Qatar":{s:"阿菲夫",t:"亚洲杯冠军，传控打法，技术细腻"},
+"Saudi Arabia":{s:"多萨里",t:"敢于高位压迫强队，作风积极"},
+"Uzbekistan":{s:"肖穆罗多夫",t:"首次晋级世界杯，中亚技术流，青年才俊辈出"},
+"Jordan":{s:"穆萨·塔马里",t:"亚洲杯亚军黑马，防守反击犀利"},
+"New Zealand":{s:"克里斯·伍德",t:"高中锋战术明确，定位球是主要得分手段"},
+"Panama":{s:"法哈多",t:"中北美劲旅，整体防守紧凑"},
+"South Africa":{s:"福斯特",t:"非洲杯季军班底，攻防节奏快"},
+"Cape Verde":{s:"门德斯",t:"首次参赛的黑马，团队作战意志顽强"},
+"Cabo Verde":{s:"门德斯",t:"首次参赛的黑马，团队作战意志顽强"}
+};
+const CITY_ZH = {
+"East Rutherford":"东卢瑟福（纽约/新泽西）","New York":"纽约","New Jersey":"新泽西","Los Angeles":"洛杉矶","Inglewood":"英格尔伍德（洛杉矶）",
+"Dallas":"达拉斯","Arlington":"阿灵顿（达拉斯）","Houston":"休斯敦","Atlanta":"亚特兰大","Miami":"迈阿密","Miami Gardens":"迈阿密花园",
+"Boston":"波士顿","Foxborough":"福克斯堡（波士顿）","Philadelphia":"费城","Seattle":"西雅图","San Francisco":"旧金山","Santa Clara":"圣克拉拉（旧金山湾区）",
+"Kansas City":"堪萨斯城","Toronto":"多伦多","Vancouver":"温哥华","Mexico City":"墨西哥城","Guadalajara":"瓜达拉哈拉","Zapopan":"萨波潘（瓜达拉哈拉）","Monterrey":"蒙特雷","Guadalupe":"瓜达卢佩（蒙特雷）"
+};
+const VENUE_ZH = {
+"MetLife Stadium":"大都会人寿体育场","New York New Jersey Stadium":"纽约新泽西体育场",
+"SoFi Stadium":"SoFi 体育场","Los Angeles Stadium":"洛杉矶体育场",
+"AT&T Stadium":"AT&T 体育场","Dallas Stadium":"达拉斯体育场",
+"NRG Stadium":"NRG 体育场","Houston Stadium":"休斯敦体育场",
+"Mercedes-Benz Stadium":"梅赛德斯-奔驰体育场","Atlanta Stadium":"亚特兰大体育场",
+"Hard Rock Stadium":"硬石体育场","Miami Stadium":"迈阿密体育场",
+"Gillette Stadium":"吉列体育场","Boston Stadium":"波士顿体育场",
+"Lincoln Financial Field":"林肯金融球场","Philadelphia Stadium":"费城体育场",
+"Lumen Field":"流明球场","Seattle Stadium":"西雅图体育场",
+"Levi's Stadium":"李维斯体育场","San Francisco Bay Area Stadium":"旧金山湾区体育场",
+"Arrowhead Stadium":"箭头体育场","GEHA Field at Arrowhead Stadium":"箭头体育场","Kansas City Stadium":"堪萨斯城体育场",
+"BMO Field":"BMO 球场","Toronto Stadium":"多伦多体育场",
+"BC Place":"卑诗体育馆","Vancouver Stadium":"温哥华体育馆",
+"Estadio Azteca":"阿兹特克体育场","Estadio Banorte":"阿兹特克体育场（Banorte）","Mexico City Stadium":"墨西哥城体育场",
+"Estadio Akron":"阿克伦体育场","Estadio Guadalajara":"瓜达拉哈拉体育场",
+"Estadio BBVA":"BBVA 体育场","Estadio Monterrey":"蒙特雷体育场"
+};
+const POS_ZH = {"Goalkeeper":"门将","Defender":"后卫","Midfielder":"中场","Forward":"前锋","Attacker":"前锋",
+"G":"门将","GK":"门将","D":"后卫","M":"中场","F":"前锋","A":"前锋","Coach":"主教练"};
+function zhTeam(en){ return (TEAMS[en]&&TEAMS[en][0])||en||"待定"; }
+function rating(en){ return (TEAMS[en]&&TEAMS[en][1])||1450; }
+function squadInfo(en){ return SQUAD[en]||{s:"以团队整体为核心",t:"以整体协作与防守组织为主，力争创造惊喜"}; }
+function zhPos(p){ return POS_ZH[p]||p||""; }
+function zhVenue(v){
+  if(!v) return "";
+  let name = VENUE_ZH[v.fullName] || v.fullName || "";
+  let city = v.address ? (CITY_ZH[v.address.city] || v.address.city || "") : "";
+  return name + (city?(" · "+city):"");
+}
+
+// ================= 弹窗通用 =================
+function openModal(title, logo){
+  document.getElementById("modalTitle").textContent = title;
+  const img=document.getElementById("modalLogo");
+  if(logo){ img.src=logo; img.style.display="block"; } else img.style.display="none";
+  document.getElementById("modalBody").innerHTML = `<div class="loading"><div class="spinner"></div>加载中…</div>`;
+  document.getElementById("modalMask").classList.add("open");
+  document.body.style.overflow="hidden";
+}
+function closeModal(){
+  document.getElementById("modalMask").classList.remove("open");
+  document.body.style.overflow="";
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+
+// ================= 球队完整名单（页面内） =================
+async function showRoster(teamId, en, logo){
+  const zh = zhTeam(en);
+  openModal(`${zh} · 球员名单`, logo);
+  const body = document.getElementById("modalBody");
+  if(rosterCache[teamId]){ body.innerHTML = rosterCache[teamId]; return; }
+  try{
+    const res = await fetch(`${BASE}/teams/${teamId}/roster`);
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    // 兼容两种结构：扁平 athletes[] 或按位置分组 athletes[].items[]
+    let players = [];
+    (data.athletes||[]).forEach(a=>{
+      if(a && a.items) players.push(...a.items);
+      else if(a) players.push(a);
+    });
+    if(!players.length) throw new Error("empty");
+    // 按位置分组
+    const order=["门将","后卫","中场","前锋"];
+    const groups={};
+    players.forEach(p=>{
+      const pos = zhPos(p.position&&(p.position.name||p.position.abbreviation)) || "其他";
+      (groups[pos]=groups[pos]||[]).push(p);
+    });
+    const keys = Object.keys(groups).sort((a,b)=>{
+      const ia=order.indexOf(a), ib=order.indexOf(b);
+      return (ia<0?99:ia)-(ib<0?99:ib);
+    });
+    const html = keys.map(k=>{
+      const rows = groups[k].sort((a,b)=>(+a.jersey||99)-(+b.jersey||99)).map(p=>{
+        const name = p.fullName||p.displayName||p.name||"-";
+        const age = p.age?`${p.age}岁`:"";
+        return `<div class="player">
+          <span class="jersey">${p.jersey||"-"}</span>
+          <span class="pname">${name}</span>
+          <span class="pmeta">${age}</span>
+        </div>`;
+      }).join("");
+      return `<div class="pos-header">${k} · ${groups[k].length}人</div>${rows}`;
+    }).join("") + `<p style="font-size:11px;color:var(--muted);margin-top:12px">* 名单实时来自 ESPN 数据，球员姓名以官方注册名显示</p>`;
+    rosterCache[teamId]=html;
+    body.innerHTML=html;
+  }catch(err){
+    body.innerHTML=`<div class="error">名单加载失败（该队数据可能暂未发布）<br>
+      <button onclick="showRoster('${teamId}','${en.replace(/'/g,"\\'")}','')">重试</button></div>`;
+  }
+}
+
+// ================= 比赛出场名单（页面内） =================
+async function showLineup(eventId){
+  const ev = allEvents.find(e=>e.id===eventId);
+  let title="出场名单";
+  if(ev){
+    const cs=ev.competitions[0].competitors||[];
+    const h=cs.find(c=>c.homeAway==="home")||cs[0], a=cs.find(c=>c.homeAway==="away")||cs[1];
+    title = `${zhTeam(h?.team?.displayName)} vs ${zhTeam(a?.team?.displayName)} · 出场名单`;
+  }
+  openModal(title, "");
+  const body=document.getElementById("modalBody");
+  if(lineupCache[eventId]){ body.innerHTML=lineupCache[eventId]; return; }
+  try{
+    const res = await fetch(`${BASE}/summary?event=${eventId}`);
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const rosters = data.rosters||[];
+    if(!rosters.length || !rosters.some(r=>(r.roster||[]).length)) throw new Error("empty");
+    const colHtml = rosters.map(r=>{
+      const teamEn = r.team&&(r.team.displayName||r.team.name)||"";
+      const logo = r.team&&r.team.logo?`<img src="${r.team.logo}" alt="">`:"";
+      const list = r.roster||[];
+      const starters = list.filter(p=>p.starter);
+      const subs = list.filter(p=>!p.starter);
+      const row = p=>{
+        const a=p.athlete||{};
+        const pos=zhPos(p.position&&(p.position.abbreviation||p.position.name));
+        const subbedIn = p.subbedIn||((p.plays||[]).some(x=>x.substitution));
+        return `<div class="player">
+          <span class="jersey">${p.jersey||a.jersey||"-"}</span>
+          <span class="pname">${a.displayName||a.fullName||"-"}</span>
+          ${subbedIn&&!p.starter?'<span class="sub-tag">替补登场</span>':""}
+          <span class="pmeta">${pos}</span>
+        </div>`;
+      };
+      let formation = r.team&&r.team.formation?`<span style="color:var(--muted);font-size:12px">（${r.team.formation}）</span>`:"";
+      return `<div class="lineup-col">
+        <h4>${logo}${zhTeam(teamEn)}${formation}</h4>
+        <div class="pos-header">首发 ${starters.length?("· "+starters.length+"人"):""}</div>
+        ${starters.length?starters.map(row).join(""):'<p style="color:var(--muted);font-size:12px;padding:6px 0">首发名单暂未公布</p>'}
+        <div class="pos-header">替补</div>
+        ${subs.length?subs.map(row).join(""):'<p style="color:var(--muted);font-size:12px;padding:6px 0">暂无数据</p>'}
+      </div>`;
+    }).join("");
+    const html = `<div class="lineup-cols">${colHtml}</div>
+      <p style="font-size:11px;color:var(--muted);margin-top:12px">* 出场数据实时来自 ESPN，"替补登场"标识表示该替补球员已上场</p>`;
+    // 已结束的比赛才长期缓存，进行中的不缓存以便刷新
+    if(ev && ev.status?.type?.state==="post") lineupCache[eventId]=html;
+    body.innerHTML=html;
+  }catch(err){
+    body.innerHTML=`<div class="error">出场名单暂未发布或加载失败<br>
+      <button onclick="showLineup('${eventId}')">重试</button></div>`;
+  }
+}
+
+// ================= 时间工具 =================
+function roundLabel(d){
+  const ymd = +fmtYMD(d).replace(/-/g,"");
+  if (ymd <= 20260627) return "小组赛";
+  if (ymd <= 20260703) return "32 强";
+  if (ymd <= 20260707) return "16 强";
+  if (ymd <= 20260711) return "四分之一决赛";
+  if (ymd <= 20260715) return "半决赛";
+  if (ymd === 20260718) return "季军赛";
+  if (ymd === 20260719) return "决赛";
+  return "";
+}
+function isKnockout(d){ return +fmtYMD(d).replace(/-/g,"") > 20260627; }
+function fmtYMD(d){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${dd}`;
+}
+function fmtCN(d){
+  const wd=["周日","周一","周二","周三","周四","周五","周六"][d.getDay()];
+  return `${d.getMonth()+1}月${d.getDate()}日 ${wd}`;
+}
+function fmtTime(d){ return d.toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"}); }
+
+// ================= 球队赛事状态（用于预测） =================
+function teamForm(en){
+  let w=0,dr=0,l=0,gf=0,ga=0;
+  for(const ev of allEvents){
+    if(ev.status?.type?.state!=="post") continue;
+    const comp=ev.competitions&&ev.competitions[0]; if(!comp) continue;
+    const cs=comp.competitors||[];
+    const me=cs.find(c=>c.team&&(c.team.displayName===en||c.team.name===en));
+    if(!me) continue;
+    const opp=cs.find(c=>c!==me); if(!opp) continue;
+    const ms=+me.score||0, os=+opp.score||0;
+    gf+=ms; ga+=os;
+    if(ms>os)w++; else if(ms===os)dr++; else l++;
+  }
+  return {w,d:dr,l,gf,ga,played:w+dr+l};
+}
+function effRating(en){
+  const base=rating(en), f=teamForm(en);
+  if(!f.played) return base;
+  const gd=(f.gf-f.ga)/f.played;
+  const wr=(f.w+0.5*f.d)/f.played;
+  return base + gd*60 + (wr-0.5)*120;
+}
+function predict(hEn,aEn,knockout){
+  const ra=effRating(hEn), rb=effRating(aEn);
+  const dr=ra-rb;
+  let pDraw = Math.max(0.10, 0.28 - Math.abs(dr)/2500);
+  const pA_noDraw = 1/(1+Math.pow(10,-dr/600));
+  let pH=(1-pDraw)*pA_noDraw, pA=(1-pDraw)*(1-pA_noDraw);
+  let h=Math.round(pH*100), d=Math.round(pDraw*100), a=100-h-d;
+  if(a<0){a=0;d=100-h;}
+  return {h,d,a,ra:Math.round(ra),rb:Math.round(rb),knockout};
+}
+function formText(en){
+  const f=teamForm(en);
+  if(!f.played) return `${zhTeam(en)}本届尚未亮相`;
+  return `${zhTeam(en)}本届 ${f.w}胜${f.d}平${f.l}负，进${f.gf}球失${f.ga}球`;
+}
+
+// ================= 渲染比赛卡片 =================
+function clickableName(team, zhName){
+  if(team && team.id){
+    const en=(team.displayName||team.name||"").replace(/'/g,"\\'");
+    const logo=team.logo||"";
+    return `<span class="name clickable" title="点击查看${zhName}球员名单" onclick="showRoster('${team.id}','${en}','${logo}')">${zhName}</span>`;
+  }
+  return `<span class="name">${zhName}</span>`;
+}
+function matchCard(ev){
+  const comp = ev.competitions && ev.competitions[0];
+  if(!comp) return "";
+  const d = new Date(ev.date);
+  const state = (ev.status && ev.status.type && ev.status.type.state) || "pre";
+  const comps = comp.competitors || [];
+  const home = comps.find(c=>c.homeAway==="home") || comps[0] || {};
+  const away = comps.find(c=>c.homeAway==="away") || comps[1] || {};
+  const hEn = (home.team && (home.team.displayName||home.team.name)) || "";
+  const aEn = (away.team && (away.team.displayName||away.team.name)) || "";
+  const hName = zhTeam(hEn), aName = zhTeam(aEn);
+  const hLogo = home.team && home.team.logo ? `<img src="${home.team.logo}" alt="" onerror="this.style.display='none'">` : "";
+  const aLogo = away.team && away.team.logo ? `<img src="${away.team.logo}" alt="" onerror="this.style.display='none'">` : "";
+
+  let statusCls="pre", statusTxt=fmtTime(d), scoreHtml=`<div class="score dim">${fmtTime(d)}</div>`;
+  if(state==="in"){
+    statusCls="in";
+    statusTxt="● 直播中 " + ((ev.status.displayClock&&ev.status.displayClock!=="0'") ? ev.status.displayClock : (ev.status.type.shortDetail||""));
+    scoreHtml=`<div class="score">${home.score??0} - ${away.score??0}</div>`;
+  }else if(state==="post"){
+    statusCls="post"; statusTxt="已结束";
+    scoreHtml=`<div class="score">${home.score??0} - ${away.score??0}</div>`;
+  }
+
+  let actions="";
+  if(state==="post" && hEn && aEn){
+    const q=encodeURIComponent(`${hEn} vs ${aEn} 2026 World Cup highlights 集锦`);
+    actions=`<div class="actions">
+      <a class="act-btn video" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">📺 精彩回放</a>
+      <a class="act-btn video" href="https://search.bilibili.com/all?keyword=${encodeURIComponent(hName+" "+aName+" 世界杯 集锦")}" target="_blank" rel="noopener">📺 B站回放</a>
+      <button class="act-btn lineup" onclick="showLineup('${ev.id}')">👥 出场名单</button>
+    </div>`;
+  }else if(state==="in"){
+    actions=`<div class="actions">
+      <button class="act-btn lineup" onclick="showLineup('${ev.id}')">👥 出场名单</button>
+    </div>`;
+  }else if(state==="pre" && hEn && aEn && hName!=="待定" && aName!=="待定"){
+    const open = openPredicts.has(ev.id);
+    actions=`<div class="actions"><button class="act-btn" onclick="togglePredict('${ev.id}')">🔮 胜负预测</button></div>
+    <div class="predict ${open?"open":""}" id="pred-${ev.id}">${open?predictHtml(ev.id,hEn,aEn,d):""}</div>`;
+  }
+
+  const venue = zhVenue(comp.venue);
+  return `<div class="match ${state==="in"?"live":""}">
+    <div class="match-top"><span>${fmtCN(d)} <span class="round-tag">${roundLabel(d)}</span></span><span class="status ${statusCls}">${statusTxt}</span></div>
+    <div class="teams">
+      <div class="team">${hLogo}${clickableName(home.team,hName)}</div>
+      ${scoreHtml}
+      <div class="team away">${aLogo}${clickableName(away.team,aName)}</div>
+    </div>
+    ${venue?`<div class="venue">📍 ${venue}</div>`:""}
+    ${actions}
+  </div>`;
+}
+
+// ================= 预测面板 =================
+function predictHtml(id,hEn,aEn,date){
+  const ko=isKnockout(date);
+  const p=predict(hEn,aEn,ko);
+  const hN=zhTeam(hEn),aN=zhTeam(aEn);
+  const hS=squadInfo(hEn),aS=squadInfo(aEn);
+  let verdict;
+  if(p.h-p.a>=25) verdict=`<b>${hN}</b>实力占据明显优势，取胜概率较大`;
+  else if(p.a-p.h>=25) verdict=`<b>${aN}</b>实力占据明显优势，取胜概率较大`;
+  else if(Math.abs(p.h-p.a)>=10) verdict=`${p.h>p.a?`<b>${hN}</b>`:`<b>${aN}</b>`}稍占上风，但悬念犹存`;
+  else verdict=`双方实力接近，这将是一场<b>势均力敌</b>的较量`;
+  return `
+    <div class="prob-bar">
+      <div class="prob-h" style="width:${p.h}%">${p.h>=14?p.h+"%":""}</div>
+      <div class="prob-d" style="width:${p.d}%">${p.d>=14?p.d+"%":""}</div>
+      <div class="prob-a" style="width:${p.a}%">${p.a>=14?p.a+"%":""}</div>
+    </div>
+    <div class="prob-legend"><span>🟢 ${hN}胜 ${p.h}%</span><span>⚪ ${ko?"90分钟平":"平局"} ${p.d}%</span><span>🔵 ${aN}胜 ${p.a}%</span></div>
+    <div class="ability-grid">
+      <div class="ability-box">
+        <h5>${hN} · 评分 ${p.ra}</h5>
+        <div>⭐ 核心球员：<span class="stars">${hS.s}</span></div>
+        <div>🧩 球队能力：${hS.t}</div>
+      </div>
+      <div class="ability-box">
+        <h5>${aN} · 评分 ${p.rb}</h5>
+        <div>⭐ 核心球员：<span class="stars">${aS.s}</span></div>
+        <div>🧩 球队能力：${aS.t}</div>
+      </div>
+    </div>
+    <div class="analysis">
+      ⚡ 本届近况：${formText(hEn)}；${formText(aEn)}<br>
+      🎯 综合判断：${verdict}${ko?"。淘汰赛若 90 分钟战平将进入加时与点球大战":""}
+    </div>
+    <div class="predict-note">* 评分含本届表现实时修正；预测由页面内置模型计算，仅供娱乐参考</div>`;
+}
+function togglePredict(id){
+  const el=document.getElementById("pred-"+id);
+  if(!el) return;
+  if(openPredicts.has(id)){ openPredicts.delete(id); el.classList.remove("open"); }
+  else{
+    openPredicts.add(id);
+    const ev=allEvents.find(e=>e.id===id);
+    if(ev){
+      const comp=ev.competitions[0], cs=comp.competitors||[];
+      const h=cs.find(c=>c.homeAway==="home")||cs[0], a=cs.find(c=>c.homeAway==="away")||cs[1];
+      el.innerHTML=predictHtml(id,h.team.displayName||h.team.name,a.team.displayName||a.team.name,new Date(ev.date));
+    }
+    el.classList.add("open");
+  }
+}
+
+// ================= 今日比赛 =================
+function renderToday(){
+  const el = document.getElementById("today");
+  const todayStr = fmtYMD(new Date());
+  const todays = allEvents.filter(ev=>fmtYMD(new Date(ev.date))===todayStr);
+  if(!todays.length){
+    const next = allEvents.filter(ev=>new Date(ev.date)>new Date()).slice(0,6);
+    el.innerHTML = `<div class="empty">今天没有比赛安排 🏖️</div>` +
+      (next.length?`<div class="day-header">即将开始</div>`+next.map(matchCard).join(""):"");
+    return;
+  }
+  const live = todays.filter(e=>e.status?.type?.state==="in");
+  const pre = todays.filter(e=>e.status?.type?.state==="pre");
+  const post = todays.filter(e=>e.status?.type?.state==="post");
+  let html="";
+  if(live.length) html+=`<div class="day-header" style="color:var(--live)">🔴 正在进行</div>`+live.map(matchCard).join("");
+  if(pre.length) html+=`<div class="day-header">⏰ 即将开始</div>`+pre.map(matchCard).join("");
+  if(post.length) html+=`<div class="day-header" style="color:var(--muted)">✅ 已结束</div>`+post.map(matchCard).join("");
+  el.innerHTML = html;
+}
+
+// ================= 完整赛程 =================
+function renderDateNav(){
+  const nav = document.getElementById("dateNav");
+  const dates = [...new Set(allEvents.map(ev=>fmtYMD(new Date(ev.date))))].sort();
+  if(!selectedDate){
+    const today = fmtYMD(new Date());
+    selectedDate = dates.includes(today) ? today : (dates.find(x=>x>=today) || dates[0]);
+  }
+  nav.innerHTML = dates.map(ds=>{
+    const d = new Date(ds+"T12:00:00");
+    return `<button class="${ds===selectedDate?"sel":""}" onclick="pickDate('${ds}')">${d.getMonth()+1}/${d.getDate()}</button>`;
+  }).join("");
+}
+function pickDate(ds){ selectedDate=ds; renderDateNav(); renderSchedule(); }
+function renderSchedule(){
+  const list = document.getElementById("scheduleList");
+  const evs = allEvents.filter(ev=>fmtYMD(new Date(ev.date))===selectedDate)
+    .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(!evs.length){ list.innerHTML=`<div class="empty">该日期暂无比赛数据</div>`; return; }
+  const d = new Date(selectedDate+"T12:00:00");
+  list.innerHTML = `<div class="day-header">${fmtCN(d)} · 共 ${evs.length} 场</div>` + evs.map(matchCard).join("");
+}
+
+// ================= 淘汰赛对阵图 =================
+function renderBracket(){
+  const el = document.getElementById("bracket");
+  const ranges = [
+    ["32 强", 20260628, 20260703, 16],
+    ["16 强", 20260704, 20260707, 8],
+    ["1/4 决赛", 20260709, 20260711, 4],
+    ["半决赛", 20260714, 20260715, 2],
+    ["决赛 & 季军赛", 20260718, 20260719, 2]
+  ];
+  const ymdOf = ev => +fmtYMD(new Date(ev.date)).replace(/-/g,"");
+  const cols = ranges.map(([title,from,to,slots])=>{
+    let evs = allEvents.filter(ev=>{const y=ymdOf(ev);return y>=from&&y<=to;})
+      .sort((a,b)=>new Date(a.date)-new Date(b.date));
+    let cards;
+    if(evs.length){
+      cards = evs.map(bMini).join("");
+    }else{
+      cards = Array.from({length:slots},()=>`<div class="b-match"><div class="b-date">待定</div>
+        <div class="b-row"><div class="bt"><span class="bn" style="color:var(--muted)">待定</span></div><span class="bs">-</span></div>
+        <div class="b-row"><div class="bt"><span class="bn" style="color:var(--muted)">待定</span></div><span class="bs">-</span></div></div>`).join("");
+    }
+    return `<div class="b-round"><h4>${title}</h4>${cards}</div>`;
+  }).join("");
+  el.innerHTML = `<div class="day-header">🏆 淘汰赛对阵图（横向滑动查看）</div>
+    <div class="bracket-wrap"><div class="bracket">${cols}</div></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">绿色加粗为晋级方 · 小组赛结束（6月27日）后对阵自动生成并实时更新</p>`;
+}
+function bMini(ev){
+  const comp=ev.competitions&&ev.competitions[0]; if(!comp) return "";
+  const d=new Date(ev.date);
+  const state=ev.status?.type?.state||"pre";
+  const cs=comp.competitors||[];
+  const home=cs.find(c=>c.homeAway==="home")||cs[0]||{};
+  const away=cs.find(c=>c.homeAway==="away")||cs[1]||{};
+  const row=(c)=>{
+    const en=(c.team&&(c.team.displayName||c.team.name))||"";
+    const zh=en?zhTeam(en):"待定";
+    const logo=c.team&&c.team.logo?`<img src="${c.team.logo}" alt="" onerror="this.style.display='none'">`:"";
+    const win=state==="post"&&c.winner;
+    const score=(state==="pre")?"":(c.score??"");
+    return `<div class="b-row ${win?"winner":""}"><div class="bt">${logo}<span class="bn">${zh}</span></div><span class="bs">${score}</span></div>`;
+  };
+  let st="";
+  if(state==="in") st=`<span style="color:var(--live)">● 直播</span>`;
+  else if(state==="post") st="已结束";
+  else st=fmtTime(d);
+  return `<div class="b-match ${state==="in"?"live":""}">
+    <div class="b-date"><span>${d.getMonth()+1}/${d.getDate()} ${roundLabel(d)}</span><span>${st}</span></div>
+    ${row(home)}${row(away)}
+  </div>`;
+}
+
+// ================= 积分榜 =================
+async function loadStandings(){
+  const el = document.getElementById("standings");
+  try{
+    const res = await fetch(STANDINGS_API);
+    if(!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const groups = data.children || [];
+    if(!groups.length){ el.innerHTML=`<div class="empty">积分榜数据暂未发布，小组赛开打后将自动显示</div>`; return; }
+    const stat=(entry,names)=>{
+      for(const n of names){
+        const s=(entry.stats||[]).find(x=>x.name===n||x.abbreviation===n);
+        if(s&&s.displayValue!=null) return s.displayValue;
+      }
+      return "-";
+    };
+    const zhGroup=n=>{
+      if(!n) return "小组";
+      const m=n.match(/Group\s+([A-L])/i);
+      return m?`${m[1]} 组`:n;
+    };
+    el.innerHTML = groups.map(g=>{
+      const entries=(g.standings&&g.standings.entries)||[];
+      const rows = entries.map((e,i)=>{
+        const logoUrl = e.team&&e.team.logos&&e.team.logos[0]?e.team.logos[0].href:"";
+        const logo = logoUrl?`<img src="${logoUrl}" alt="" onerror="this.style.display='none'">`:"";
+        const en=(e.team&&(e.team.displayName||e.team.name))||"-";
+        const zh=zhTeam(en);
+        const enEsc=en.replace(/'/g,"\\'");
+        const link=e.team&&e.team.id
+          ?`<span class="clickable" title="查看${zh}球员名单" onclick="showRoster('${e.team.id}','${enEsc}','${logoUrl}')">${zh}</span>`
+          :zh;
+        return `<tr class="${i<2?"q":""}">
+          <td><div class="tname">${logo}${link}</div></td>
+          <td>${stat(e,["gamesPlayed","GP"])}</td>
+          <td>${stat(e,["wins","W"])}</td>
+          <td>${stat(e,["ties","D"])}</td>
+          <td>${stat(e,["losses","L"])}</td>
+          <td>${stat(e,["pointDifferential","goalDifferential","GD"])}</td>
+          <td class="pts">${stat(e,["points","P","PTS"])}</td>
+        </tr>`;
+      }).join("");
+      return `<div class="group-card"><h3>${zhGroup(g.name||g.abbreviation)}</h3>
+        <table><thead><tr><th>球队</th><th>场次</th><th>胜</th><th>平</th><th>负</th><th>净胜</th><th>积分</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+    }).join("");
+  }catch(err){
+    el.innerHTML=`<div class="error">积分榜加载失败<br><button onclick="loadStandings()">重试</button></div>`;
+  }
+}
+
+// ================= 主数据加载 =================
+async function loadScores(){
+  const res = await fetch(API);
+  if(!res.ok) throw new Error(res.status);
+  const data = await res.json();
+  allEvents = (data.events||[]).sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+async function refreshAll(manual){
+  try{
+    await loadScores();
+    renderToday(); renderDateNav(); renderSchedule(); renderBracket();
+    document.getElementById("lastUpdate").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN");
+  }catch(err){
+    if(!allEvents.length){
+      document.getElementById("today").innerHTML =
+        `<div class="error">数据加载失败，请检查网络<br><button onclick="refreshAll(true)">重试</button></div>`;
+    }
+    document.getElementById("lastUpdate").textContent = "更新失败，将自动重试";
+  }
+  if(manual) loadStandings();
+}
+
+// ================= 标签切换 =================
+function switchTab(id){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelector(`nav button[data-tab="${id}"]`).classList.add("active");
+  if(id==="standings") loadStandings();
+}
+
+// ================= 启动 =================
+refreshAll(false);
+loadStandings();
+setInterval(()=>refreshAll(false), 60000);
+</script>
+</body>
+</html>
