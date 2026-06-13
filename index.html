@@ -668,8 +668,14 @@ function renderDateNav(){
   }
   nav.innerHTML = dates.map(ds=>{
     const d = new Date(ds+"T12:00:00");
-    return `<button class="${ds===selectedDate?"sel":""}" onclick="pickDate('${ds}')">${d.getMonth()+1}/${d.getDate()}</button>`;
+    return `<button class="${ds===selectedDate?"sel":""}" data-ds="${ds}" onclick="pickDate('${ds}')">${d.getMonth()+1}/${d.getDate()}</button>`;
   }).join("");
+  // 自动把选中的日期滚动到可视区域中央
+  const selBtn = nav.querySelector("button.sel");
+  if(selBtn){
+    const target = selBtn.offsetLeft - nav.clientWidth/2 + selBtn.offsetWidth/2;
+    nav.scrollTo({left:Math.max(0,target), behavior:"smooth"});
+  }
 }
 function pickDate(ds){ selectedDate=ds; renderDateNav(); renderSchedule(); }
 function renderSchedule(){
