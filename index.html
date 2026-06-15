@@ -34,6 +34,9 @@ header p{color:rgba(255,255,255,.75);margin-top:6px;font-size:14px;position:rela
 .refresh-btn:hover{background:rgba(255,255,255,.22)}
 .theme-btn{position:absolute;top:14px;right:14px;z-index:2;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
 .theme-btn:hover{background:rgba(255,255,255,.26)}
+.region-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.8)}
+.region-bar select{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 10px;border-radius:18px;cursor:pointer;font-size:12px;font-weight:600;outline:none}
+.region-bar select option{background:#13203f;color:#fff}
 nav{display:flex;justify-content:center;gap:4px;padding:12px;background:var(--card);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);flex-wrap:wrap}
 nav button{background:transparent;border:none;color:var(--muted);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;transition:.2s}
 nav button:hover{color:var(--text);background:var(--card2)}
@@ -169,6 +172,18 @@ footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;border-t
     <span id="lastUpdate">数据加载中…</span>
     <button class="refresh-btn" onclick="refreshAll(true)">↻ 刷新</button>
   </div>
+  <div class="region-bar">
+    <span>📺 转播地区：</span>
+    <select id="regionSel" onchange="changeRegion(this.value)">
+      <option value="global">🌍 国际 (FIFA 官方)</option>
+      <option value="cn">🇨🇳 中国大陆</option>
+      <option value="hk">🇭🇰 中国香港</option>
+      <option value="us">🇺🇸 美国</option>
+      <option value="ca">🇨🇦 加拿大</option>
+      <option value="mx">🇲🇽 墨西哥</option>
+      <option value="uk">🇬🇧 英国</option>
+    </select>
+  </div>
 </header>
 
 <nav>
@@ -190,7 +205,7 @@ footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;border-t
   <div id="about" class="section">
     <div class="about">
       <h3>📡 数据来源</h3>
-      <p>本页面通过 ESPN 公开数据接口实时获取数据，无需 API 密钥，比赛期间每 60 秒自动刷新。点击队名在本页弹窗查看完整球员名单；已结束或进行中的比赛可在本页查看出场阵容。已结束的比赛提供 FIFA 官方 YouTube 频道与 FIFA+ 官方平台的集锦回放入口。</p>
+      <p>本页面通过 ESPN 公开数据接口实时获取数据，无需 API 密钥，比赛期间每 60 秒自动刷新。点击队名在本页弹窗查看完整球员名单；已结束或进行中的比赛可在本页查看出场阵容。已结束的比赛会根据顶部所选「转播地区」显示对应官方转播方的集锦/回放入口（默认 FIFA 官方渠道）。</p>
       <h3>🔮 预测说明</h3>
       <p>胜负预测综合：① 球队实力基准分（参考国际排名）② 本届赛事实时表现修正 ③ 核心球员与战术风格分析。仅供娱乐参考，不构成任何竞猜建议。</p>
       <h3>🏆 赛事简介</h3>
@@ -220,8 +235,46 @@ const STANDINGS_API = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.worl
 let allEvents = [];
 let selectedDate = null;
 let openPredicts = new Set();
+let region = "global";
 const rosterCache = {};   // teamId -> html
 const lineupCache = {};   // eventId -> html
+
+// ================= 各地区官方转播方 =================
+// 每个地区返回该场比赛的官方集锦/回放入口按钮（基于已确认的 2026 世界杯持权方）
+const BROADCASTERS = {
+  global:(h,a)=>([
+    {t:"📺 FIFA 官方集锦", u:`https://www.youtube.com/@fifa/search?query=${encodeURIComponent(h+" vs "+a+" highlights")}`},
+    {t:"▶️ FIFA+ 回放", u:`https://www.plus.fifa.com/en/search?q=${encodeURIComponent(h+" "+a)}`}
+  ]),
+  cn:(h,a)=>([
+    {t:"📺 央视体育", u:"https://tv.cctv.com/cctv5/"},
+    {t:"▶️ 咪咕视频", u:"https://www.miguvideo.com/"}
+  ]),
+  hk:(h,a)=>([
+    {t:"📺 Now TV 体育", u:"https://nowtv.now.com/sports"},
+    {t:"▶️ ViuTV", u:"https://viu.tv/"}
+  ]),
+  us:(h,a)=>([
+    {t:"📺 FOX Sports", u:`https://www.foxsports.com/search?q=${encodeURIComponent(h+" "+a)}`},
+    {t:"▶️ Telemundo", u:"https://www.telemundodeportes.com/futbol/copa-mundial/"}
+  ]),
+  ca:(h,a)=>([
+    {t:"📺 TSN", u:"https://www.tsn.ca/soccer/fifa-world-cup"},
+    {t:"▶️ CTV", u:"https://www.ctv.ca/sports"}
+  ]),
+  mx:(h,a)=>([
+    {t:"📺 TUDN", u:`https://www.tudn.com/futbol/copa-mundial`},
+    {t:"▶️ TV Azteca", u:"https://www.aztecadeportes.com/mundial-2026"}
+  ]),
+  uk:(h,a)=>([
+    {t:"📺 BBC Sport", u:`https://www.bbc.co.uk/search?q=${encodeURIComponent(h+" "+a)}&d=sport`},
+    {t:"▶️ ITVX", u:"https://www.itv.com/watch/categories/sport"}
+  ])
+};
+function changeRegion(v){
+  region=v;
+  renderToday(); renderSchedule();
+}
 
 // ================= 中文翻译与实力评分 =================
 const TEAMS = {
@@ -556,10 +609,12 @@ function matchCard(ev){
 
   let actions="";
   if(state==="post" && hEn && aEn){
-    const q=encodeURIComponent(`${hEn} vs ${aEn} highlights`);
+    const fn = BROADCASTERS[region] || BROADCASTERS.global;
+    const vids = fn(hEn,aEn).map(b=>
+      `<a class="act-btn video" href="${b.u}" target="_blank" rel="noopener">${b.t}</a>`
+    ).join("");
     actions=`<div class="actions">
-      <a class="act-btn video" href="https://www.youtube.com/@fifa/search?query=${q}" target="_blank" rel="noopener">📺 FIFA 官方集锦</a>
-      <a class="act-btn video" href="https://www.plus.fifa.com/en/search?q=${encodeURIComponent(hEn+" "+aEn)}" target="_blank" rel="noopener">▶️ FIFA+ 回放</a>
+      ${vids}
       <button class="act-btn lineup" onclick="showLineup('${ev.id}')">👥 出场名单</button>
     </div>`;
   }else if(state==="in"){
