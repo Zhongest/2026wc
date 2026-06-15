@@ -190,7 +190,7 @@ footer{text-align:center;padding:24px;color:var(--muted);font-size:12px;border-t
   <div id="about" class="section">
     <div class="about">
       <h3>📡 数据来源</h3>
-      <p>本页面通过 ESPN 公开数据接口实时获取数据，无需 API 密钥，比赛期间每 60 秒自动刷新。点击队名在本页弹窗查看完整球员名单；已结束或进行中的比赛可在本页查看出场阵容。</p>
+      <p>本页面通过 ESPN 公开数据接口实时获取数据，无需 API 密钥，比赛期间每 60 秒自动刷新。点击队名在本页弹窗查看完整球员名单；已结束或进行中的比赛可在本页查看出场阵容。已结束的比赛提供 FIFA 官方 YouTube 频道与 FIFA+ 官方平台的集锦回放入口。</p>
       <h3>🔮 预测说明</h3>
       <p>胜负预测综合：① 球队实力基准分（参考国际排名）② 本届赛事实时表现修正 ③ 核心球员与战术风格分析。仅供娱乐参考，不构成任何竞猜建议。</p>
       <h3>🏆 赛事简介</h3>
@@ -556,10 +556,10 @@ function matchCard(ev){
 
   let actions="";
   if(state==="post" && hEn && aEn){
-    const q=encodeURIComponent(`${hEn} vs ${aEn} 2026 World Cup highlights 集锦`);
+    const q=encodeURIComponent(`${hEn} vs ${aEn} highlights`);
     actions=`<div class="actions">
-      <a class="act-btn video" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">📺 精彩回放</a>
-      <a class="act-btn video" href="https://search.bilibili.com/all?keyword=${encodeURIComponent(hName+" "+aName+" 世界杯 集锦")}" target="_blank" rel="noopener">📺 B站回放</a>
+      <a class="act-btn video" href="https://www.youtube.com/@fifa/search?query=${q}" target="_blank" rel="noopener">📺 FIFA 官方集锦</a>
+      <a class="act-btn video" href="https://www.plus.fifa.com/en/search?q=${encodeURIComponent(hEn+" "+aEn)}" target="_blank" rel="noopener">▶️ FIFA+ 回放</a>
       <button class="act-btn lineup" onclick="showLineup('${ev.id}')">👥 出场名单</button>
     </div>`;
   }else if(state==="in"){
